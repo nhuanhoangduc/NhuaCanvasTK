@@ -964,6 +964,32 @@ papaya.viewer.Viewer.prototype.updatePosition = function (viewer, xLoc, yLoc, cr
 };
 
 
+papaya.viewer.Viewer.prototype.getCoord = function (viewer, xLoc, yLoc, crosshairsOnly) {
+    var xImageLoc, yImageLoc, temp, originalX, originalY, surfaceCoord;
+
+    viewer.updateOffsetRect();
+    originalX = xLoc;
+    originalY = yLoc;
+    xLoc = xLoc - this.canvasRect.left;
+    yLoc = yLoc - this.canvasRect.top;
+
+    if (this.insideScreenSlice(viewer.axialSlice, xLoc, yLoc, viewer.volume.getXDim(), viewer.volume.getYDim())) {
+        xImageLoc = this.convertScreenToImageCoordinateX(xLoc, viewer.axialSlice);
+        yImageLoc = this.convertScreenToImageCoordinateY(yLoc, viewer.axialSlice);
+    } else if (this.insideScreenSlice(viewer.coronalSlice, xLoc, yLoc, viewer.volume.getXDim(),
+            viewer.volume.getZDim())) {
+        xImageLoc = this.convertScreenToImageCoordinateX(xLoc, viewer.coronalSlice);
+        yImageLoc = this.convertScreenToImageCoordinateY(yLoc, viewer.coronalSlice);
+    } else if (this.insideScreenSlice(viewer.sagittalSlice, xLoc, yLoc, viewer.volume.getYDim(),
+            viewer.volume.getZDim())) {
+        xImageLoc = this.convertScreenToImageCoordinateX(xLoc, viewer.sagittalSlice);
+        yImageLoc = this.convertScreenToImageCoordinateY(yLoc, viewer.sagittalSlice);
+    } 
+
+    return { x: xImageLoc, y: yImageLoc };
+};
+
+
 
 papaya.viewer.Viewer.prototype.convertScreenToImageCoordinateX = function (xLoc, screenSlice) {
     return papaya.viewer.Viewer.validDimBounds(papayaFloorFast((xLoc - screenSlice.finalTransform[0][2]) / screenSlice.finalTransform[0][0]),
@@ -1099,6 +1125,7 @@ papaya.viewer.Viewer.prototype.updateCursorPosition = function (viewer, xLoc, yL
         }
     }
 };
+
 
 
 

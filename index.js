@@ -1,11 +1,23 @@
 const PointerObject = function(x, y) {
     this.x = x;
     this.y = y;
+
     this.color = 'red';
     this.width = 1;
 
     this.getLocation = function(viewer, screenSlice) {
-        return viewer.convertCoordinateToScreen({ x: this.x, y: this.y }, screenSlice);
+        if (screenSlice === viewer.axialSlice) {
+            return viewer.convertCoordinateToScreen({ x: this.x, y: this.y }, screenSlice);
+        }
+
+        if (screenSlice === viewer.coronalSlice) {
+            return viewer.convertCoordinateToScreen({ x: this.x, z: this.y }, screenSlice);
+        }
+
+        if (screenSlice === viewer.sagittalSlice) {
+            return viewer.convertCoordinateToScreen({ y: this.x, z: this.y }, screenSlice);
+        }
+        
     };
 
     this.render = function(context, viewer, screenSlice) {
@@ -36,11 +48,14 @@ const ReactangleObject = function() {
         if (this.endPoint) {
             this.endPoint.render(context, viewer, screenSlice);
 
-            const x = Math.min(this.startPoint.getLocation(viewer, screenSlice).x, this.endPoint.getLocation(viewer, screenSlice).x);
-            const y = Math.min(this.startPoint.getLocation(viewer, screenSlice).y, this.endPoint.getLocation(viewer, screenSlice).y);
+            const startLocation = this.startPoint.getLocation(viewer, screenSlice);
+            const endLocation = this.endPoint.getLocation(viewer, screenSlice);
 
-            const width = Math.abs(this.startPoint.getLocation(viewer, screenSlice).x - this.endPoint.getLocation(viewer, screenSlice).x);
-            const height = Math.abs(this.startPoint.getLocation(viewer, screenSlice).y - this.endPoint.getLocation(viewer, screenSlice).y);
+            const x = Math.min(startLocation.x, endLocation.x);
+            const y = Math.min(startLocation.y, endLocation.y);
+
+            const width = Math.abs(startLocation.x - endLocation.x);
+            const height = Math.abs(startLocation.y - endLocation.y);
 
             context.beginPath();
             context.lineWidth = 1;
@@ -216,7 +231,17 @@ const NhuanCanvasTK = function() {
 
 
     this.getLocation = function(coord, viewer, screenSlice) {
-        return viewer.convertCoordinateToScreen(coord, screenSlice);
+        if (screenSlice === viewer.axialSlice) {
+            return viewer.convertCoordinateToScreen({ x: coord.x, y: coord.y }, screenSlice);
+        }
+
+        if (screenSlice === viewer.coronalSlice) {
+            return viewer.convertCoordinateToScreen({ x: coord.x, z: coord.y }, screenSlice);
+        }
+
+        if (screenSlice === viewer.sagittalSlice) {
+            return viewer.convertCoordinateToScreen({ y: coord.x, z: coord.y }, screenSlice);
+        }
     };
 
     
@@ -227,14 +252,13 @@ const NhuanCanvasTK = function() {
         const positionX = papaya.utilities.PlatformUtils.getMousePositionX(event);
         const positionY = papaya.utilities.PlatformUtils.getMousePositionY(event);
 
+        this.selectedSlice = this.viewer.findClickedSlice(this.viewer, positionX, positionY);
+        const currentCoord = this.viewer.getCoord(this.viewer, positionX, positionY);
+
 
         switch (type) {
             case this.Events.MouseDown:
                 if (!this.currentObject.startPoint) {
-                    this.selectedSlice = this.viewer.findClickedSlice(this.viewer, positionX, positionY);
-                    this.viewer.updatePosition(this.viewer, positionX, positionY);
-                    const currentCoord = this.viewer.currentCoord;
-
                     const pointer = new PointerObject(currentCoord.x , currentCoord.y);
                     this.currentObject.startPoint = pointer;
                     this.currentObject.render(this.context, this.viewer, this.selectedSlice);
@@ -244,13 +268,13 @@ const NhuanCanvasTK = function() {
                     this.cleanAndRerender();
 
                     this.viewer.updatePosition(this.viewer, positionX, positionY);
-                    const currentCoord = this.viewer.currentCoord;
 
                     const pointer = new PointerObject(currentCoord.x , currentCoord.y);
                     this.currentObject.endPoint = pointer;
-                    this.currentObject.render(this.context, this.viewer, this.selectedSlice);
                     
-                    this.pushObject(this.currentObject, this.selectedSlice)
+                    this.pushObject(this.currentObject, this.selectedSlice);
+                    this.currentObject.render(this.context, this.viewer, this.selectedSlice);
+
                     this.unsetTool(this.activeTool);
                 }
                 break;
@@ -258,9 +282,6 @@ const NhuanCanvasTK = function() {
 
             case this.Events.MouseMove:
                 if (this.currentObject.startPoint && !this.currentObject.endPoint) {
-                    this.viewer.updatePosition(this.viewer, positionX, positionY);
-                    const currentCoord = this.viewer.currentCoord;
-
                     const startLocation = this.currentObject.startPoint.getLocation(this.viewer, this.selectedSlice);
                     const endLocation = this.getLocation(currentCoord, this.viewer, this.selectedSlice);
 
