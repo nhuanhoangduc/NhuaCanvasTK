@@ -45,6 +45,8 @@ const ReactangleObject = function() {
 
 const NhuanCanvasTK = function() {
 
+    this.viewer = null;
+
     this.element = null;
     this.context = null;
     
@@ -55,7 +57,9 @@ const NhuanCanvasTK = function() {
     this.tools = ['rectangle'];
     this.activeTool = this.tools[0];
 
-    this.objects = [];
+    this.axialObjects = [];
+    this.coronalObjects = [];
+    this.sagittalObjects = [];
     this.currentObject = null;
 
     this.eventHandler = null;
@@ -65,6 +69,8 @@ const NhuanCanvasTK = function() {
         MouseDown: 'NhuanCanvasTK.mouseDown',
         DoubleClick: 'NhuanCanvasTK.doubleClick',
     };
+
+    this.unsetToolSubscribers = [];
 
 
     this.subscribeEvents = function(handler) {
@@ -123,6 +129,14 @@ const NhuanCanvasTK = function() {
     };
 
 
+    this.setViewer = function(viewer) {
+        this.viewer = viewer;
+        this.viewer.onDrawViewer(() => {
+            console.log('drawed');
+        });
+    }
+
+
     this.setTool = function(tool) {
         this.activeTool = tool;
 
@@ -133,6 +147,11 @@ const NhuanCanvasTK = function() {
                 break;
             
         }
+
+        console.log(this.viewer)
+        this.viewer.toggleMainCrosshairs = false
+        this.viewer.removeScroll();
+        this.viewer.removeEvents();
     };
 
 
@@ -145,6 +164,16 @@ const NhuanCanvasTK = function() {
                 break;
             
         }
+
+        this.unsetToolSubscribers.forEach(subscriber => subscriber());
+        this.viewer.toggleMainCrosshairs = true;
+        this.viewer.addScroll();
+        this.viewer.addEvents();
+    };
+
+
+    this.onFinish = function(subscriber) {
+        this.unsetToolSubscribers.push(subscriber);
     };
 
 
@@ -178,7 +207,7 @@ const NhuanCanvasTK = function() {
                     this.currentObject.endPoint = pointer;
                     this.currentObject.render(this.context);
 
-                    this.objects.push(this.currentObject);
+                    // this.objects.push(this.currentObject);
                     this.unsetTool(this.activeTool);
                 }
                 break;
@@ -210,8 +239,8 @@ const NhuanCanvasTK = function() {
 
 
 window.onload = function() {
-    const element = document.getElementById('canvas');
-    const ntk = new NhuanCanvasTK();
-    ntk.setElement(element);
-    ntk.setTool('rectangle')
+    // const element = document.getElementById('canvas');
+    // const ntk = new NhuanCanvasTK();
+    // ntk.setElement(element);
+    // ntk.setTool('rectangle')
 };
