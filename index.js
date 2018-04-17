@@ -4,10 +4,16 @@ const PointerObject = function(x, y) {
     this.color = 'red';
     this.width = 1;
 
+    this.getLocation = function(viewer, screenSlice) {
+        return viewer.convertCoordinateToScreen({ x: this.x, y: this.y }, screenSlice);
+    };
+
     this.render = function(context, viewer, screenSlice) {
+        const coord = this.getLocation(viewer, screenSlice);
+
         context.beginPath();
         context.lineWidth = this.width;
-        context.arc(this.x, this.y, 5, 0, 2 * Math.PI);
+        context.arc(coord.x, coord.y, 5, 0, 2 * Math.PI);
         context.strokeStyle = this.color;
         context.stroke();
     };
@@ -22,19 +28,19 @@ const ReactangleObject = function() {
     this.slice = null;
     this.currentSlice = null;
 
-    this.render = function(context) {
+    this.render = function(context, viewer, screenSlice) {
         if (this.startPoint) {
-            this.startPoint.render(context);
+            this.startPoint.render(context, viewer, screenSlice);
         }
 
         if (this.endPoint) {
-            this.endPoint.render(context);
+            this.endPoint.render(context, viewer, screenSlice);
 
-            const x = Math.min(this.startPoint.x, this.endPoint.x);
-            const y = Math.min(this.startPoint.y, this.endPoint.y);
+            const x = Math.min(this.startPoint.getLocation(viewer, screenSlice).x, this.endPoint.getLocation(viewer, screenSlice).x);
+            const y = Math.min(this.startPoint.getLocation(viewer, screenSlice).y, this.endPoint.getLocation(viewer, screenSlice).y);
 
-            const width = Math.abs(this.startPoint.x - this.endPoint.x);
-            const height = Math.abs(this.startPoint.y - this.endPoint.y);
+            const width = Math.abs(this.startPoint.getLocation(viewer, screenSlice).x - this.endPoint.getLocation(viewer, screenSlice).x);
+            const height = Math.abs(this.startPoint.getLocation(viewer, screenSlice).y - this.endPoint.getLocation(viewer, screenSlice).y);
 
             context.beginPath();
             context.lineWidth = 1;
@@ -196,46 +202,53 @@ const NhuanCanvasTK = function() {
         }
 
         if (selectedSlice === this.viewer.coronalSlice) {
+            object.slice = 'coronal';
+            object.currentSlice = selectedSlice.currentSlice;
             this.coronalObjects.push(object);
         }
 
         if (selectedSlice === this.viewer.sagittalSlice) {
+            object.slice = 'sagittal';
+            object.currentSlice = selectedSlice.currentSlice;
             this.sagittalObjects.push(object);
         }
     }
+
+
+    this.getLocation = function(coord, viewer, screenSlice) {
+        return viewer.convertCoordinateToScreen(coord, screenSlice);
+    };
 
     
     this.reactangleHandler = function(payload) {
         const type = payload.detail.type;
         const event = payload.detail.event;
 
-        const offsetX = event.offsetX;
-        const offsetY = event.offsetY;
-
         const positionX = papaya.utilities.PlatformUtils.getMousePositionX(event);
         const positionY = papaya.utilities.PlatformUtils.getMousePositionY(event);
 
-        // this.selectedSlice = this.viewer.findClickedSlice(this.viewer, positionX, positionY);
-        // console.log('Axial: ', this.selectedSlice === this.viewer.axialSlice);
-        // console.log('Coronal: ', this.selectedSlice === this.viewer.coronalSlice);
-        // console.log('Sagittal: ', this.selectedSlice === this.viewer.sagittalSlice);
-        // return;
 
         switch (type) {
             case this.Events.MouseDown:
                 if (!this.currentObject.startPoint) {
-                    const pointer = new PointerObject(offsetX , offsetY);
-                    this.currentObject.startPoint = pointer;
-                    this.currentObject.render(this.context);
-
                     this.selectedSlice = this.viewer.findClickedSlice(this.viewer, positionX, positionY);
+                    this.viewer.updatePosition(this.viewer, positionX, positionY);
+                    const currentCoord = this.viewer.currentCoord;
+
+                    const pointer = new PointerObject(currentCoord.x , currentCoord.y);
+                    this.currentObject.startPoint = pointer;
+                    this.currentObject.render(this.context, this.viewer, this.selectedSlice);
+
                     this.beforeDrawFrame = this.element.toDataURL();
                 } else {
                     this.cleanAndRerender();
 
-                    const pointer = new PointerObject(offsetX , offsetY);
+                    this.viewer.updatePosition(this.viewer, positionX, positionY);
+                    const currentCoord = this.viewer.currentCoord;
+
+                    const pointer = new PointerObject(currentCoord.x , currentCoord.y);
                     this.currentObject.endPoint = pointer;
-                    this.currentObject.render(this.context);
+                    this.currentObject.render(this.context, this.viewer, this.selectedSlice);
                     
                     this.pushObject(this.currentObject, this.selectedSlice)
                     this.unsetTool(this.activeTool);
@@ -245,13 +258,17 @@ const NhuanCanvasTK = function() {
 
             case this.Events.MouseMove:
                 if (this.currentObject.startPoint && !this.currentObject.endPoint) {
-                    const Point = this.currentObject.startPoint;
+                    this.viewer.updatePosition(this.viewer, positionX, positionY);
+                    const currentCoord = this.viewer.currentCoord;
 
-                    const x = Math.min(Point.x, offsetX);
-                    const y = Math.min(Point.y, offsetY);
+                    const startLocation = this.currentObject.startPoint.getLocation(this.viewer, this.selectedSlice);
+                    const endLocation = this.getLocation(currentCoord, this.viewer, this.selectedSlice);
 
-                    const width = Math.abs(Point.x - offsetX);
-                    const height = Math.abs(Point.y - offsetY);
+                    const x = Math.min(startLocation.x, endLocation.x);
+                    const y = Math.min(startLocation.y, endLocation.y);
+
+                    const width = Math.abs(startLocation.x - endLocation.x);
+                    const height = Math.abs(startLocation.y - endLocation.y);
 
                     this.cleanAndRerender();
 
@@ -270,16 +287,21 @@ const NhuanCanvasTK = function() {
         // console.log(this.viewer.mainImage === this.viewer.axialSlice)
         this.axialObjects.forEach((object) => {
             if (this.viewer.axialSlice.currentSlice === object.currentSlice) {
-                object.render(this.context);
+                console.log(JSON.stringify(object));
+                object.render(this.context, this.viewer, this.viewer.axialSlice);
+            }
+        });
+
+        this.coronalObjects.forEach((object) => {
+            if (this.viewer.coronalSlice.currentSlice === object.currentSlice) {
+                object.render(this.context, this.viewer, this.viewer.coronalSlice);
+            }
+        });
+
+        this.sagittalObjects.forEach((object) => {
+            if (this.viewer.sagittalSlice.currentSlice === object.currentSlice) {
+                object.render(this.context, this.viewer, this.viewer.sagittalSlice);
             }
         });
     };
-};
-
-
-window.onload = function() {
-    // const element = document.getElementById('canvas');
-    // const ntk = new NhuanCanvasTK();
-    // ntk.setElement(element);
-    // ntk.setTool('rectangle')
 };
