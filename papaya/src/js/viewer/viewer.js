@@ -1173,8 +1173,6 @@ papaya.viewer.Viewer.prototype.onDrawViewer = function(subscriber) {
 
 
 papaya.viewer.Viewer.prototype.drawViewer = function (force, skipUpdate) {
-    this.drawSubscribers.forEach(subscriber => subscriber());
-
     var radiological = (this.container.preferences.radiological === "Yes"),
         showOrientation = (this.container.preferences.showOrientation === "Yes");
 
@@ -1249,6 +1247,8 @@ papaya.viewer.Viewer.prototype.drawViewer = function (force, skipUpdate) {
     if (this.container.contextManager && this.container.contextManager.drawToViewer) {
         this.container.contextManager.drawToViewer(this.context);
     }
+
+    this.drawSubscribers.forEach(subscriber => subscriber());
 };
 
 
@@ -2125,6 +2125,8 @@ papaya.viewer.Viewer.prototype.findClickedSlice = function (viewer, xLoc, yLoc) 
     } else {
         this.selectedSlice = null;
     }
+
+    return this.selectedSlice;
 };
 
 

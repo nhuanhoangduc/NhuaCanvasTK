@@ -4,10 +4,10 @@ const PointerObject = function(x, y) {
     this.color = 'red';
     this.width = 1;
 
-    this.render = function(context) {
+    this.render = function(context, viewer, screenSlice) {
         context.beginPath();
         context.lineWidth = this.width;
-        context.arc(this.x, this.y, 10, 0, 2 * Math.PI);
+        context.arc(this.x, this.y, 5, 0, 2 * Math.PI);
         context.strokeStyle = this.color;
         context.stroke();
     };
@@ -18,6 +18,9 @@ const ReactangleObject = function() {
     this.type = 'rectangle';
     this.startPoint = null;
     this.endPoint = null;
+
+    this.slice = null;
+    this.currentSlice = null;
 
     this.render = function(context) {
         if (this.startPoint) {
@@ -61,6 +64,8 @@ const NhuanCanvasTK = function() {
     this.coronalObjects = [];
     this.sagittalObjects = [];
     this.currentObject = null;
+
+    this.selectedSlice = null;
 
     this.eventHandler = null;
 
@@ -122,9 +127,6 @@ const NhuanCanvasTK = function() {
     this.setElement = function(element) {
         this.element = element;
         this.context = this.element.getContext('2d');
-
-        this.currentFrame = this.element.toDataURL();
-
         return this;
     };
 
@@ -132,13 +134,14 @@ const NhuanCanvasTK = function() {
     this.setViewer = function(viewer) {
         this.viewer = viewer;
         this.viewer.onDrawViewer(() => {
-            console.log('drawed');
+            this.render();
         });
     }
 
 
     this.setTool = function(tool) {
         this.activeTool = tool;
+        this.currentFrame = this.element.toDataURL();
 
         switch (this.activeTool) {
             case 'rectangle':
@@ -148,7 +151,6 @@ const NhuanCanvasTK = function() {
             
         }
 
-        console.log(this.viewer)
         this.viewer.toggleMainCrosshairs = false
         this.viewer.removeScroll();
         this.viewer.removeEvents();
@@ -185,6 +187,23 @@ const NhuanCanvasTK = function() {
         this.context.drawImage(canvasPic, 0, 0);
     };
 
+
+    this.pushObject = function(object, selectedSlice) {
+        if (selectedSlice === this.viewer.axialSlice) {
+            object.slice = 'axial';
+            object.currentSlice = selectedSlice.currentSlice;
+            this.axialObjects.push(object);
+        }
+
+        if (selectedSlice === this.viewer.coronalSlice) {
+            this.coronalObjects.push(object);
+        }
+
+        if (selectedSlice === this.viewer.sagittalSlice) {
+            this.sagittalObjects.push(object);
+        }
+    }
+
     
     this.reactangleHandler = function(payload) {
         const type = payload.detail.type;
@@ -193,12 +212,23 @@ const NhuanCanvasTK = function() {
         const offsetX = event.offsetX;
         const offsetY = event.offsetY;
 
+        const positionX = papaya.utilities.PlatformUtils.getMousePositionX(event);
+        const positionY = papaya.utilities.PlatformUtils.getMousePositionY(event);
+
+        // this.selectedSlice = this.viewer.findClickedSlice(this.viewer, positionX, positionY);
+        // console.log('Axial: ', this.selectedSlice === this.viewer.axialSlice);
+        // console.log('Coronal: ', this.selectedSlice === this.viewer.coronalSlice);
+        // console.log('Sagittal: ', this.selectedSlice === this.viewer.sagittalSlice);
+        // return;
+
         switch (type) {
             case this.Events.MouseDown:
                 if (!this.currentObject.startPoint) {
                     const pointer = new PointerObject(offsetX , offsetY);
                     this.currentObject.startPoint = pointer;
                     this.currentObject.render(this.context);
+
+                    this.selectedSlice = this.viewer.findClickedSlice(this.viewer, positionX, positionY);
                     this.beforeDrawFrame = this.element.toDataURL();
                 } else {
                     this.cleanAndRerender();
@@ -206,8 +236,8 @@ const NhuanCanvasTK = function() {
                     const pointer = new PointerObject(offsetX , offsetY);
                     this.currentObject.endPoint = pointer;
                     this.currentObject.render(this.context);
-
-                    // this.objects.push(this.currentObject);
+                    
+                    this.pushObject(this.currentObject, this.selectedSlice)
                     this.unsetTool(this.activeTool);
                 }
                 break;
@@ -224,7 +254,6 @@ const NhuanCanvasTK = function() {
                     const height = Math.abs(Point.y - offsetY);
 
                     this.cleanAndRerender();
-                    // this.currentObject.render(this.context);
 
                     this.context.beginPath();
                     this.context.lineWidth = 0.4;
@@ -234,6 +263,16 @@ const NhuanCanvasTK = function() {
                 }
                 break;
         }
+    };
+
+
+    this.render = function() {
+        // console.log(this.viewer.mainImage === this.viewer.axialSlice)
+        this.axialObjects.forEach((object) => {
+            if (this.viewer.axialSlice.currentSlice === object.currentSlice) {
+                object.render(this.context);
+            }
+        });
     };
 };
 
