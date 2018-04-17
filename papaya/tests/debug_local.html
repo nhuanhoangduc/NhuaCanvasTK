@@ -105,19 +105,20 @@
         params["atlas"] = ["Talairach_labels_1mm"];
         params["loadingComplete"] = function() {
             const element = papayaContainers[0].viewer.canvas;
-            const ntk = new NhuanCanvasTK();
+            const ntk = new NhuaPapayaTK();
             ntk.setElement(element);
             ntk.setViewer(papayaContainers[0].viewer)
-            ntk.setTool('NhuanCanvasTK.objectTypes.rectangle');
+            // ntk.setTool('NhuaPapayaTK.objectTypes.polygon');
 
             const newRectangle = {
-                "type":"NhuanCanvasTK.objectTypes.rectangle",
+                "type":"NhuaPapayaTK.objectTypes.rectangle",
                 "startPoint":{"x":64,"y":55,"color":"red","width":1},
                 "endPoint":{"x":79,"y":82,"color":"red","width":1},
-                "slice":"NhuanCanvasTK.planes.axial",
+                "slice":"NhuaPapayaTK.planes.axial",
                 "currentSlice":75
             };
-            ntk.loadObject(newRectangle);
+            ntk.loadObjects([newRectangle]);
+            console.log(ntk.getObjects());
         };
 
     </script>

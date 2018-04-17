@@ -1,19 +1,21 @@
 
 const Events = {
-    MouseMove: 'NhuanCanvasTK.events.mouseMove',
-    MouseDown: 'NhuanCanvasTK.events.mouseDown',
-    DoubleClick: 'NhuanCanvasTK.events.doubleClick',
+    MouseMove: 'NhuaPapayaTK.events.mouseMove',
+    MouseDown: 'NhuaPapayaTK.events.mouseDown',
+    DoubleClick: 'NhuaPapayaTK.events.doubleClick',
 };
 
-const ObjectTypes = {
-    Rectangle: 'NhuanCanvasTK.objectTypes.rectangle',
+
+const ObjectTypes = window.papayaTools = {
+    Rectangle: 'NhuaPapayaTK.objectTypes.rectangle',
+    Polygon: 'NhuaPapayaTK.objectTypes.polygon',
 };
 
 
 const Planes = {
-    Axial: 'NhuanCanvasTK.planes.axial',
-    Sagittal: 'NhuanCanvasTK.planes.sagittal',
-    Coronal: 'NhuanCanvasTK.planes.coronal',
+    Axial: 'NhuaPapayaTK.planes.axial',
+    Sagittal: 'NhuaPapayaTK.planes.sagittal',
+    Coronal: 'NhuaPapayaTK.planes.coronal',
 };
 
 
@@ -22,8 +24,8 @@ const PointerObject = function(x, y) {
     this.x = x;
     this.y = y;
 
-    this.color = 'red';
-    this.width = 1;
+    this.color = '#F9690E';
+    this.width = 2;
 
     this.getLocation = function(viewer, screenSlice) {
         if (screenSlice === viewer.axialSlice) {
@@ -78,9 +80,47 @@ const ReactangleObject = function() {
             const height = Math.abs(startLocation.y - endLocation.y);
 
             context.beginPath();
-            context.lineWidth = 1;
+            context.lineWidth = 2;
             context.rect(x, y, width, height);
-            context.strokeStyle = 'black';
+            context.strokeStyle = '#26A65B';
+            context.stroke();
+        }
+    };
+};
+
+
+const PolygonObject = function() {
+    this.type = ObjectTypes.Polygon;
+
+    this.slice = null;
+    this.currentSlice = null;
+
+    this.points = [];
+
+    this.render = function(context, viewer, screenSlice) {
+        this.points.forEach((point) => {
+            point.render(context, viewer, screenSlice);
+        });
+
+
+        if (this.points.length >= 2) {
+            const startLocation = this.points[0].getLocation(viewer, screenSlice);
+
+            context.beginPath();
+            context.moveTo(startLocation.x, startLocation.y);
+
+            for (let i = 1; i < this.points.length; i++) {
+                const point = this.points[i];
+                const location = point.getLocation(viewer, screenSlice);
+                
+                context.lineTo(location.x, location.y);
+            }
+
+            context.closePath();
+            context.strokeStyle = '#f1c40f';
+            context.lineWidth = 2;
+            context.fillStyle = 'rgba(243, 156, 18, 0.1)';
+            context.fill();
             context.stroke();
         }
     };
@@ -88,14 +128,13 @@ const ReactangleObject = function() {
 
 
 
-const NhuanCanvasTK = function() {
+const NhuaPapayaTK = function() {
 
     this.viewer = null;
 
     this.element = null;
     this.context = null;
     
-    this.currentFrame = null;
     this.beforeDrawFrame = null;
     this.frames = [];
     
@@ -177,12 +216,17 @@ const NhuanCanvasTK = function() {
 
     this.setTool = function(tool) {
         this.activeTool = tool;
-        this.currentFrame = this.element.toDataURL();
+        this.beforeDrawFrame = this.element.toDataURL();
 
         switch (this.activeTool) {
             case ObjectTypes.Rectangle:
                 this.currentObject = new ReactangleObject();
                 this.subscribeEvents(this.reactangleHandler);
+                break;
+
+            case ObjectTypes.Polygon:
+                this.currentObject = new PolygonObject();
+                this.subscribeEvents(this.polygonHandler);
                 break;
             
         }
@@ -198,7 +242,11 @@ const NhuanCanvasTK = function() {
 
         switch (tool) {
             case ObjectTypes.Rectangle:
-                this.unsubscribeEvents(this.reactangleHandler);
+                this.unsubscribeEvents();
+                break;
+
+            case ObjectTypes.Polygon:
+                this.unsubscribeEvents();
                 break;
             
         }
@@ -277,8 +325,6 @@ const NhuanCanvasTK = function() {
                     const pointer = new PointerObject(currentCoord.x , currentCoord.y);
                     this.currentObject.startPoint = pointer;
                     this.currentObject.render(this.context, this.viewer, this.selectedSlice);
-
-                    this.beforeDrawFrame = this.element.toDataURL();
                 } else {
                     this.cleanAndRerender();
 
@@ -319,8 +365,70 @@ const NhuanCanvasTK = function() {
     };
 
 
+    this.polygonHandler = function(payload) {
+        const type = payload.detail.type;
+        const event = payload.detail.event;
+
+        const positionX = papaya.utilities.PlatformUtils.getMousePositionX(event);
+        const positionY = papaya.utilities.PlatformUtils.getMousePositionY(event);
+
+        this.selectedSlice = this.viewer.findClickedSlice(this.viewer, positionX, positionY);
+        const currentCoord = this.viewer.getCoord(this.viewer, positionX, positionY);
+
+
+        switch (type) {
+            case Events.DoubleClick:
+                this.cleanAndRerender();
+                this.viewer.updatePosition(this.viewer, positionX, positionY);
+                
+                if (this.currentObject.points.length >= 2) {
+                    const pointer = new PointerObject(currentCoord.x , currentCoord.y);
+                    this.currentObject.points.push(pointer);
+                    this.currentObject.render(this.context, this.viewer, this.selectedSlice);
+
+                    this.pushObject(this.currentObject, this.selectedSlice);
+                    this.unsetTool(this.activeTool);
+                }
+                break;
+
+
+            case Events.MouseDown:
+                const pointer = new PointerObject(currentCoord.x , currentCoord.y);
+                this.currentObject.points.push(pointer);
+                this.currentObject.render(this.context, this.viewer, this.selectedSlice);
+                break;
+
+
+            case Events.MouseMove:
+                if (this.currentObject.points.length > 2) {
+                    this.cleanAndRerender();
+                    this.viewer.updatePosition(this.viewer, positionX, positionY);
+
+                    const currentLocation = this.getLocation(currentCoord, this.viewer, this.selectedSlice);
+
+                    this.context.beginPath();
+                    this.context.moveTo(currentLocation.x, currentLocation.y);
+
+                    for (let i = 0; i < this.currentObject.points.length; i++) {
+                        const point = this.currentObject.points[i];
+                        const location = point.getLocation(this.viewer, this.selectedSlice);
+
+                        this.context.lineTo(location.x, location.y);
+                    }
+
+                    this.context.closePath();
+                    this.context.stroke();
+
+                    this.currentObject.points.forEach((point) => {
+                        point.render(this.context, this.viewer, this.selectedSlice);
+                    });
+                }
+                break;
+        }
+    };
+
+
     this.render = function() {
-        // console.log(this.viewer.mainImage === this.viewer.axialSlice)
         this.axialObjects.forEach((object) => {
             if (this.viewer.axialSlice.currentSlice === object.currentSlice) {
                 console.log(JSON.stringify(object));
@@ -342,19 +450,60 @@ const NhuanCanvasTK = function() {
     };
 
 
-    this.loadObject = function(object) {
+    this.loadObject = function(object, willRender) {
         const type = object.type;
+        let newObject = null;
         
         switch (type) {
             case ObjectTypes.Rectangle:
-                const newObject = new ReactangleObject();
+                newObject = new ReactangleObject();
                 newObject.startPoint = new PointerObject(object.startPoint.x, object.startPoint.y);
                 newObject.endPoint = new PointerObject(object.endPoint.x, object.endPoint.y);
-                newObject.slice = object.slice;
-                newObject.currentSlice = object.currentSlice;
-                this.axialObjects.push(newObject);
-                this.render();
+                break;
+
+            case ObjectTypes.Polygon:
+                newObject = new PolygonObject();
+                newObject.points = object.points.map((point) => {
+                    return new PointerObject(point.x, point.y);
+                });
                 break;
         }
+
+        if (!newObject) {
+            return;
+        }
+
+        newObject.slice = object.slice;
+        newObject.currentSlice = object.currentSlice;
+
+        if (object.slice === Planes.Axial) {
+            this.axialObjects.push(newObject);
+        }
+
+        if (object.slice === Planes.Coronal) {
+            this.coronalObjects.push(newObject);
+        }
+
+        if (object.slice === Planes.Sagittal) {
+            this.sagittalObjects.push(newObject);
+        }
+
+        if (willRender) {
+            this.render();
+        }
+    };
+
+
+    this.loadObjects = function(objects) {
+        objects.forEach((object) => {
+            this.loadObject(object, false);
+        });
+        this.render();
+    };
+
+
+    this.getObjects = function() {
+        const totalObjects = this.axialObjects.concat(this.coronalObjects).concat(this.sagittalObjects);
+        return JSON.parse(JSON.stringify(totalObjects));
     };
 };
