@@ -108,7 +108,16 @@
             const ntk = new NhuanCanvasTK();
             ntk.setElement(element);
             ntk.setViewer(papayaContainers[0].viewer)
-            ntk.setTool('rectangle');
+            ntk.setTool('NhuanCanvasTK.objectTypes.rectangle');
+
+            const newRectangle = {
+                "type":"NhuanCanvasTK.objectTypes.rectangle",
+                "startPoint":{"x":64,"y":55,"color":"red","width":1},
+                "endPoint":{"x":79,"y":82,"color":"red","width":1},
+                "slice":"NhuanCanvasTK.planes.axial",
+                "currentSlice":75
+            };
+            ntk.loadObject(newRectangle);
         };
 
     </script>

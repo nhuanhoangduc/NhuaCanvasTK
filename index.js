@@ -1,3 +1,23 @@
+
+const Events = {
+    MouseMove: 'NhuanCanvasTK.events.mouseMove',
+    MouseDown: 'NhuanCanvasTK.events.mouseDown',
+    DoubleClick: 'NhuanCanvasTK.events.doubleClick',
+};
+
+const ObjectTypes = {
+    Rectangle: 'NhuanCanvasTK.objectTypes.rectangle',
+};
+
+
+const Planes = {
+    Axial: 'NhuanCanvasTK.planes.axial',
+    Sagittal: 'NhuanCanvasTK.planes.sagittal',
+    Coronal: 'NhuanCanvasTK.planes.coronal',
+};
+
+
+
 const PointerObject = function(x, y) {
     this.x = x;
     this.y = y;
@@ -33,7 +53,7 @@ const PointerObject = function(x, y) {
 
 
 const ReactangleObject = function() {
-    this.type = 'rectangle';
+    this.type = ObjectTypes.Rectangle;
     this.startPoint = null;
     this.endPoint = null;
 
@@ -67,6 +87,7 @@ const ReactangleObject = function() {
 };
 
 
+
 const NhuanCanvasTK = function() {
 
     this.viewer = null;
@@ -78,7 +99,7 @@ const NhuanCanvasTK = function() {
     this.beforeDrawFrame = null;
     this.frames = [];
     
-    this.tools = ['rectangle'];
+    this.tools = [ObjectTypes.Rectangle];
     this.activeTool = this.tools[0];
 
     this.axialObjects = [];
@@ -90,45 +111,39 @@ const NhuanCanvasTK = function() {
 
     this.eventHandler = null;
 
-    this.Events = {
-        MouseMove: 'NhuanCanvasTK.mouseMove',
-        MouseDown: 'NhuanCanvasTK.mouseDown',
-        DoubleClick: 'NhuanCanvasTK.doubleClick',
-    };
-
     this.unsetToolSubscribers = [];
 
 
     this.subscribeEvents = function(handler) {
         this.eventHandler = handler.bind(this);
 
-        this.element.addEventListener(this.Events.MouseMove, this.eventHandler);
+        this.element.addEventListener(Events.MouseMove, this.eventHandler);
         this.element.addEventListener('mousemove', (event) => {
-            this.element.dispatchEvent(new CustomEvent(this.Events.MouseMove, {
+            this.element.dispatchEvent(new CustomEvent(Events.MouseMove, {
                 detail: {
-                    type: this.Events.MouseMove,
+                    type: Events.MouseMove,
                     event,
                 },
             }));
         });
 
 
-        this.element.addEventListener(this.Events.MouseDown, this.eventHandler);
+        this.element.addEventListener(Events.MouseDown, this.eventHandler);
         this.element.addEventListener('mousedown', (event) => {
-            this.element.dispatchEvent(new CustomEvent(this.Events.MouseDown, {
+            this.element.dispatchEvent(new CustomEvent(Events.MouseDown, {
                 detail: {
-                    type: this.Events.MouseDown,
+                    type: Events.MouseDown,
                     event,
                 },
             }));
         });
 
 
-        this.element.addEventListener(this.Events.DoubleClick, this.eventHandler);
+        this.element.addEventListener(Events.DoubleClick, this.eventHandler);
         this.element.addEventListener('dblclick', (event) => {
-            this.element.dispatchEvent(new CustomEvent(this.Events.DoubleClick, {
+            this.element.dispatchEvent(new CustomEvent(Events.DoubleClick, {
                 detail: {
-                    type: this.Events.DoubleClick,
+                    type: Events.DoubleClick,
                     event,
                 },
             }));
@@ -139,9 +154,9 @@ const NhuanCanvasTK = function() {
 
 
     this.unsubscribeEvents = function() {
-        this.element.removeEventListener(this.Events.MouseMove, this.eventHandler);
-        this.element.removeEventListener(this.Events.MouseDown, this.eventHandler);
-        this.element.removeEventListener(this.Events.DoubleClick, this.eventHandler);
+        this.element.removeEventListener(Events.MouseMove, this.eventHandler);
+        this.element.removeEventListener(Events.MouseDown, this.eventHandler);
+        this.element.removeEventListener(Events.DoubleClick, this.eventHandler);
     };
 
 
@@ -165,7 +180,7 @@ const NhuanCanvasTK = function() {
         this.currentFrame = this.element.toDataURL();
 
         switch (this.activeTool) {
-            case 'rectangle':
+            case ObjectTypes.Rectangle:
                 this.currentObject = new ReactangleObject();
                 this.subscribeEvents(this.reactangleHandler);
                 break;
@@ -182,7 +197,7 @@ const NhuanCanvasTK = function() {
         this.activeTool = null;
 
         switch (tool) {
-            case 'rectangle':
+            case ObjectTypes.Rectangle:
                 this.unsubscribeEvents(this.reactangleHandler);
                 break;
             
@@ -211,19 +226,19 @@ const NhuanCanvasTK = function() {
 
     this.pushObject = function(object, selectedSlice) {
         if (selectedSlice === this.viewer.axialSlice) {
-            object.slice = 'axial';
+            object.slice = Planes.Axial;
             object.currentSlice = selectedSlice.currentSlice;
             this.axialObjects.push(object);
         }
 
         if (selectedSlice === this.viewer.coronalSlice) {
-            object.slice = 'coronal';
+            object.slice = Planes.Coronal;
             object.currentSlice = selectedSlice.currentSlice;
             this.coronalObjects.push(object);
         }
 
         if (selectedSlice === this.viewer.sagittalSlice) {
-            object.slice = 'sagittal';
+            object.slice = Planes.Sagittal;
             object.currentSlice = selectedSlice.currentSlice;
             this.sagittalObjects.push(object);
         }
@@ -257,7 +272,7 @@ const NhuanCanvasTK = function() {
 
 
         switch (type) {
-            case this.Events.MouseDown:
+            case Events.MouseDown:
                 if (!this.currentObject.startPoint) {
                     const pointer = new PointerObject(currentCoord.x , currentCoord.y);
                     this.currentObject.startPoint = pointer;
@@ -280,7 +295,7 @@ const NhuanCanvasTK = function() {
                 break;
 
 
-            case this.Events.MouseMove:
+            case Events.MouseMove:
                 if (this.currentObject.startPoint && !this.currentObject.endPoint) {
                     const startLocation = this.currentObject.startPoint.getLocation(this.viewer, this.selectedSlice);
                     const endLocation = this.getLocation(currentCoord, this.viewer, this.selectedSlice);
@@ -324,5 +339,22 @@ const NhuanCanvasTK = function() {
                 object.render(this.context, this.viewer, this.viewer.sagittalSlice);
             }
         });
+    };
+
+
+    this.loadObject = function(object) {
+        const type = object.type;
+        
+        switch (type) {
+            case ObjectTypes.Rectangle:
+                const newObject = new ReactangleObject();
+                newObject.startPoint = new PointerObject(object.startPoint.x, object.startPoint.y);
+                newObject.endPoint = new PointerObject(object.endPoint.x, object.endPoint.y);
+                newObject.slice = object.slice;
+                newObject.currentSlice = object.currentSlice;
+                this.axialObjects.push(newObject);
+                this.render();
+                break;
+        }
     };
 };
