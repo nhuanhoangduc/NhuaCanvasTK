@@ -1275,7 +1275,9 @@ papaya.viewer.Viewer.prototype.drawViewer = function (force, skipUpdate) {
         this.container.contextManager.drawToViewer(this.context);
     }
 
-    this.drawSubscribers.forEach(subscriber => subscriber());
+    this.drawSubscribers.forEach(function(subscriber){
+        subscriber();
+    });
 };
 
 
